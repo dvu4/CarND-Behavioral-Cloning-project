@@ -240,30 +240,5 @@ prediction = model.predict(np.array(val))
 print(prediction)
 
 
-# In[1]:
-
-a = ["1"]
-b = ["123456789"]
-set(b).difference(a)
-
-
-# In[11]:
-
-c = [i for i in b if i != a]
-
-
-# In[12]:
-
-c
-
-
-# In[13]:
-
-for i in b:
-    if i 
-
-
-# In[ ]:
-
 
 
