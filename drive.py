@@ -12,6 +12,9 @@ from PIL import ImageOps
 from flask import Flask, render_template
 from io import BytesIO
 
+import math
+import cv2
+
 from keras.models import model_from_json
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array
 
@@ -19,6 +22,14 @@ from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_a
 import tensorflow as tf
 tf.python.control_flow_ops = tf
 
+
+def crop(img, steering):
+    img_shape = img.shape
+    #img[0: math.floor(img_shape[0] / 5), :, :] = int(float(steering)/30*128+127)
+    #img[img_shape[0] - 25: img_shape[0], :, :] = int(float(steering)/30*128+127)
+
+    img = img[math.floor(img_shape[0] / 5):img_shape[0] - 25, :, :]
+    return img
 
 sio = socketio.Server()
 app = Flask(__name__)
@@ -37,25 +48,38 @@ def telemetry(sid, data):
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
     image_array = np.asarray(image)
+    
+    image_array = crop(image_array, steering_angle)
+    
     transformed_image_array = image_array[None, :, :, :]
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
     steering_angle = float(model.predict(transformed_image_array, batch_size=1))
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
-    throttle = 0.2
-    print(steering_angle, throttle)
-    send_control(steering_angle, throttle)
+    #throttle = 0.2
+    brake = 0
+    if float(speed) < 10:
+        throttle = 0.3
+    elif float(speed)<20:
+        throttle = 0.2
+    else:
+        throttle = 0.0 # only for descent after tunnel on track 2
+        brake= (speed-20.)/10. #not working :(
+    
+    print(steering_angle, throttle, brake)
+    send_control(steering_angle, throttle, brake)
 
 
 @sio.on('connect')
 def connect(sid, environ):
     print("connect ", sid)
-    send_control(0, 0)
+    send_control(0, 0, 0)
 
 
-def send_control(steering_angle, throttle):
+def send_control(steering_angle, throttle, brake):
     sio.emit("steer", data={
     'steering_angle': steering_angle.__str__(),
-    'throttle': throttle.__str__()
+    'throttle': throttle.__str__(),
+    'brake': brake.__str__()
     }, skip_sid=True)
 
 
@@ -83,3 +107,4 @@ if __name__ == '__main__':
 
     # deploy as an eventlet WSGI server
     eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
+  
