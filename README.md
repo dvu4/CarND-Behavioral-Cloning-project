@@ -256,4 +256,4 @@ By making consequent use of image augmentation with according steering angle upd
 - Look at L2 regularization and associated hyperparameters
 - Add speed as an input quantity and throttle as output quantity on the model
 - Image augmentations with shadow/darkening that may help for track 2 
-Image augmentations with a random white-noise in the crop region
+- Image augmentations with a random white-noise in the crop region
