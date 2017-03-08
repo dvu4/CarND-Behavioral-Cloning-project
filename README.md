@@ -243,6 +243,7 @@ Training Track 1 | Validation Track 2
 ------------|---------------
 ![training_img](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/train_track1.png) | ![validation_img](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/train_track2.png)
 
+The output of simulator for the track 1 is [here](https://youtu.be/3A1zTVzWZUI)
 
 ### Conclusions
 By making consequent use of image augmentation with according steering angle updates I could train a neural network to recover the car from extreme events. The output video can be seen at [run_final.mp4](https://github.com/dvu4/CarND-Behavioral-Cloning-project/blob/master/run_final.mp4). The model worked for track 1 but it failed in track 2. Getting this to work took a lot of time and this is still far from over. Here's a to-do list for myself to improve training data
