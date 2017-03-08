@@ -146,10 +146,6 @@ Shown below is a histogram of the steering angles recorded while driving in the 
 
 - Using left/right cameras instead of center with steering offsets of 0.2/-0.2
 
-- Randomly change brightness
-
-- Transition horizontally. Without transition recovery doesn't work in my model.
-
 - Crop, to reduce non-valued information
 
 - Random shadow, for the second track
@@ -249,7 +245,7 @@ Training Track 1 | Validation Track 2
 
 
 ### Conclusions
-By making consequent use of image augmentation with according steering angle updates I could train a neural network to recover the car from most extreme events. The model worked for the 3/4 of track 1 but it failed in track 2. Getting this to work took a lot of time and this is still far from over. Here's a to-do list for myself to improve training data
+By making consequent use of image augmentation with according steering angle updates I could train a neural network to recover the car from extreme events. The model worked for track 1 but it failed in track 2. Getting this to work took a lot of time and this is still far from over. Here's a to-do list for myself to improve training data
 
 - try to get it to work with increased throttle to 0.2
 - Check on track 2
