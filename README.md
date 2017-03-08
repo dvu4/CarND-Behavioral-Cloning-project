@@ -142,8 +142,9 @@ Shown below is a histogram of the steering angles recorded while driving in the 
 
 
 ### Dataset Augmentation
-8036 images in Udacity dataset is not enough for a full train, especially for recovery and for generalization for track 2. I applied following augmentation techniques:
+8036 images in Udacity dataset is not enough for a full train, especially for recovery and for generalization for track 1, 2. To augment the dataset, certain random transformations were applied to the provided images. These include:
 
+- Using left/right cameras instead of center with steering offsets of 0.2/-0.2
 
 - Randomly change brightness
 
@@ -153,7 +154,8 @@ Shown below is a histogram of the steering angles recorded while driving in the 
 
 - Random shadow, for the second track
 
-- Flip
+- Flipping vertically (this was originally done randomly, then done epoch-by-epoch)
+
 
 Brightness Augmentaion | Shadow Augmentaion
 ------------|---------------
