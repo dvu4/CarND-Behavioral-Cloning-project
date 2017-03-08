@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[57]:
+# In[207]:
 
 import os
 import pickle
@@ -16,19 +16,24 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import scipy.misc
 get_ipython().magic('matplotlib inline')
+import matplotlib
+matplotlib.style.use('ggplot')
 
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from scipy.stats import bernoulli
 
 # Import keras deep learning libraries
-from keras.models import Sequential, model_from_json
+from keras.models import Sequential, model_from_json, load_model
 from keras.layers.core import Dense, Dropout, Activation, Flatten, Lambda
 from keras.activations import relu
+from keras.layers import ELU
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras.optimizers import SGD, Adam
-from keras.regularizers import l2
+from keras.regularizers import l2, activity_l2
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.layers.advanced_activations import LeakyReLU
 
 import tensorflow as tf
 
@@ -36,12 +41,12 @@ tf.python.control_flow_ops = tf
 print('Modules loaded.')
 
 
-# In[59]:
+# In[208]:
 
 #DATA_DIR = './data/'
 DRIVING_LOG_FILE = './data/driving_log.csv'
 IMG_PATH = './data/'
-STEERING_COEFFICIENT = 0.229
+STEERING_COEFFICIENT = 0.2 #0.15-0.2
 CENTER_CAM_FILE = 0
 LEFT_CAM_FILE = 1
 RIGHT_CAM_FILE = 2
@@ -49,15 +54,20 @@ RIGHT_CAM_FILE = 2
 
 # ### Dataset Statistics
 
-# In[27]:
+# In[209]:
 
-def get_stastical_data(file):
+def get_stastitical_data(file):
     driving_log = pd.read_csv(file)
+    driving_log.head()
     steering = pd.to_numeric(driving_log['steering'], errors='coerce')
     left_steering = steering[steering <0]
     right_steering = steering[steering >0]
     center_steering = steering[steering ==0]
     num_samples = len(driving_log)
+    
+    plt.figure();
+    steering.plot.hist(bins=101,alpha=0.75)
+    
     return {
         'num_samples' :  num_samples,
         'left_steering' : {
@@ -86,9 +96,24 @@ import pprint
 pprint.pprint(get_stastical_data(DRIVING_LOG_FILE))
 
 
+# In[210]:
+
+driving_log = pd.read_csv(DRIVING_LOG_FILE,names=None)
+driving_log.head()
+
+
+# In[211]:
+
+Y_train = driving_log['steering']
+Y_train = Y_train.astype(np.float32)
+plt.figure();
+Y_train.plot.hist(bins=101,alpha=0.95)
+plt.savefig('./stastitical.png')
+
+
 # ### Dataset Augmentation
 
-# In[60]:
+# In[212]:
 
 def augmentation_shadow(image):
     img_shape = image.shape
@@ -130,13 +155,31 @@ def augmentation_brightness(image):
     image1 = cv2.cvtColor(image1,cv2.COLOR_HSV2RGB)
     return image1
 
-def augmentation_crop(image, steering):
-    img_shape = image.shape
-    #img[0: math.floor(img_shape[0] / 5), :, :] = int(steering*128+127)
-    #img[img_shape[0] - 25: img_shape[0], :, :] = int(steering*128+127)
 
+'''
+def augmentation_crop(image):
+    img_shape = image.shape
     image = image[math.floor(img_shape[0] / 5):img_shape[0] - 25, :, :]
     return image
+'''
+
+
+'''
+# crop camera image to fit nvidia model input shape
+def augmentation_crop(image, crop_height=200, crop_width=200):
+    height = image.shape[0]
+    width = image.shape[1]
+
+    # y_start = 60+random.randint(-10, 10)
+    # x_start = int(width/2)-int(crop_width/2)+random.randint(-40, 40)
+    y_start = 60
+    x_start = int(width/2)-int(crop_width/2)
+
+    return image[y_start:y_start+crop_height, x_start:x_start+crop_width]
+'''
+
+def augmentation_crop(image, crop_height=200, crop_width=200):
+    return cv2.resize(image[70:140, :, :],(crop_height, crop_width))
 
 
 def augmentation_flip(image, steering):
@@ -146,6 +189,7 @@ def augmentation_flip(image, steering):
         steering = - steering
     return image, steering
 
+        
 def augmentation_gamma(image):
     """
     Random gamma correction is used as an alternative method changing the brightness of
@@ -182,12 +226,16 @@ def augmentation_shear(image, steering, shear_range=200):
     random_point = [cols / 2 + dx, rows / 2]
     pts1 = np.float32([[0, rows], [cols, rows], [cols / 2, rows / 2]])
     pts2 = np.float32([[0, rows], [cols, rows], random_point])
-    dsteering = dx / (rows / 2) * 360 / (2 * np.pi * 25.0) / 6.0
+    dsteering = dx / (rows / 2) * 360 / (2 * np.pi * 25.0) / 6.0 
+    #dsteering = dx / (rows / 2) * 360 / (2 * np.pi * 25.0)/ 10.0  
     M = cv2.getAffineTransform(pts1, pts2)
     image = cv2.warpAffine(image, M, (cols, rows), borderMode=1)
     steering += dsteering
 
     return image, steering
+
+  
+
 
 
 def generate_new_image(image, steering_angle, do_shear_prob=0.9):
@@ -197,11 +245,11 @@ def generate_new_image(image, steering_angle, do_shear_prob=0.9):
         image, steering_angle = augmentation_shear(image, steering_angle)
             
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image = augmentation_brightness(image)
-    #img = augmentation_gamma(img)
-    image, steering_angle = augmentation_trans(image, steering_angle, 100)
-    image = augmentation_crop(image, steering_angle)
-    image = augmentation_shadow(image)
+    #image = augmentation_brightness(image)
+    ##img = augmentation_gamma(img)
+    #image, steering_angle = augmentation_trans(image, steering_angle, 100)
+    image = augmentation_crop(image)
+    #image = augmentation_shadow(image)
     image = np.array(image)
     image, steering_angle = augmentation_flip(image, steering_angle)
     
@@ -234,6 +282,7 @@ def get_image(DRIVING_LOG_FILE, batch_size=64):
             img = data.iloc[index]['center'].strip()
             steering = data.iloc[index]['steering']
             image_and_steering.append((img, steering))
+            
         elif rnd_image == RIGHT_CAM_FILE:
             img = data.iloc[index]['right'].strip()
             steering = data.iloc[index]['steering'] - STEERING_COEFFICIENT
@@ -242,7 +291,7 @@ def get_image(DRIVING_LOG_FILE, batch_size=64):
     return image_and_steering
 
 
-def myGenerator(batch_size=64):
+def myGenerator(batch_size=128):
     """
     This generator yields the next training batch
     :param batch_size:
@@ -267,7 +316,7 @@ def myGenerator(batch_size=64):
 
 # ### Dataset example
 
-# In[61]:
+# In[213]:
 
 ## 
 img_example = get_image(DRIVING_LOG_FILE, batch_size=64)
@@ -279,7 +328,7 @@ for indx in rdn_indx:
     image = plt.imread(IMG_PATH + img_file)
     steering = img_example[0][1]
 
-    resized_image = augmentation_crop(image, 0)
+    resized_image = augmentation_crop(image)
       
     
     plt.figure()
@@ -299,82 +348,96 @@ for indx in rdn_indx:
 
 # ###  Model Architecture
 
-# In[56]:
+# In[214]:
 
-# Build a model
-def nvidia_model():
-    learning_rate = 0.0001
-    # number of convolutional filters to use
-    n_filters1 = 24
-    n_filters2 = 36
-    n_filters3 = 48
-    n_filters4 = 64
-    n_filters5 = 64
-    
-    # convolution kernel size
-    kernel_size1 = (5, 5)
-    kernel_size2 = (3, 3)
+def commaai_model():
+    ch, row, col = 3, 160, 320  # camera format
 
     model = Sequential()
-    model.add(Lambda(lambda x: x / 255. - 0.5, input_shape = crop_shape, output_shape = crop_shape))
-    model.add(Convolution2D(3, 5, 5, border_mode="same", subsample=(2, 2)))
-    model.add(Activation('relu'))
-    
-    model.add(Convolution2D(n_filters1, 5, 5, border_mode='same', subsample=(2, 2)))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size = (2, 2), border_mode='same', strides = (1, 1) ))
-    model.add(Dropout(0.5))
-
-
-    model.add(Convolution2D(n_filters2, 5, 5, border_mode='same', subsample=(2, 2)))#subsample: tuple of length 2 or strides
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size = (2, 2), border_mode='same', strides = (1, 1) ))
-    model.add(Dropout(0.5))
-
-
-    model.add(Convolution2D(n_filters3, 5, 5, border_mode='same', subsample=(2, 2)))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size = (2, 2), border_mode='same', strides = (1, 1) ))
-    model.add(Dropout(0.5))
-
-
-    model.add(Convolution2D(n_filters4, 3, 3, border_mode='same', subsample=(1, 1)))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size = (2, 2), border_mode='same', strides = (1, 1) ))
-    model.add(Dropout(0.5))
-
-
-    model.add(Convolution2D(n_filters5, 3, 3, border_mode='same', subsample=(1, 1)))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size = (2, 2), border_mode='same', strides = (1, 1) ))
-    model.add(Dropout(0.5))
-
-
-    # Flatten the matrix
+    model.add(Lambda(lambda x: x/127.5 - 1.,
+                     #  input_shape=(ch, row, col),
+                     #  output_shape=(ch, row, col)))
+                     input_shape=(row, col, ch),
+                     output_shape=(row, col, ch)))
+    model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(32, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
     model.add(Flatten())
-
-    # 5 Fully-connected layers
-    model.add(Dense(1164))
-    model.add(Activation('relu'))
-
-    model.add(Dense(100))
-    model.add(Activation('relu'))
-
-    model.add(Dense(50))
-    model.add(Activation('relu'))
-
-    model.add(Dense(10))
-    model.add(Activation('relu'))
-
+    model.add(Dropout(.2))
+    model.add(ELU())
+    model.add(Dense(512))
+    model.add(Dropout(.5))
+    model.add(ELU())
     model.add(Dense(1))
 
+    model.compile(optimizer="adam", loss="mse")
 
-    # Compile and train the model
-    #model.compile(optimizer = Adam(lr=learning_rate), loss='mean_squared_error', metrics=['accuracy'])
-    model.compile(optimizer = Adam(lr=learning_rate), loss='mean_squared_error')
+    return model
+
+
+# THE summary of the model
+model = commaai_model()
+model.summary()
+
+
+# In[215]:
+
+def nvidia_model(img_height=200, img_width=200, img_channels=3):
+    """
+    A variant of the nvidia model
+    """
+    model = Sequential()
+
+
+    # normalisation layer   
+    img_shape = (img_height, img_width, img_channels)
+    model.add(Lambda(lambda x: x * 1./127.5 - 1,
+                     input_shape=(img_shape),
+                     output_shape=(img_shape), name='Normalization'))
+
+    print("LAYER: {:30s} {}".format('Normalization',model.layers[-1].output_shape))
     
-    #history = model.fit(X_train, y_train, batch_size=128, nb_epoch=10, 
-    #                    validation_split=0.2, validation_data=(X_val,y_val))
+    
+    # Layer 1
+    model.add(Convolution2D(24,3,3,border_mode='same',activation='elu',subsample=(2,2)))
+    model.add(MaxPooling2D())
+
+    # Layer 2
+    model.add(Convolution2D(36,3,3,border_mode='same',activation='elu',subsample=(2,2)))
+    model.add(MaxPooling2D())
+
+    # Layer 3
+    model.add(Convolution2D(48,3,3,border_mode='same',activation='elu',subsample=(1,1)))
+    model.add(MaxPooling2D())
+
+
+    # Layer 4
+    model.add(Convolution2D(64,3,3,border_mode='same',activation='elu',subsample=(1,1)))
+    model.add(Dropout(0.5))
+
+    # Layer 5
+    model.add(Flatten())
+    model.add(Dropout(0.5))
+
+
+    # Layer 7
+    #model.add(Dense(512,activation='elu'))
+    model.add(Dense(512))
+    model.add(LeakyReLU(alpha=.001))
+    model.add(Dropout(0.5))
+
+    # Layer 8
+    model.add(Dense(10))
+    model.add(LeakyReLU(alpha=.001))
+    # Output
+    model.add(Dense(1, activation='linear'))
+
+
+    # Minimization
+    adamopt = Adam(lr=0.0001)
+    model.compile(optimizer=adamopt, loss='mse')
     return model
 
 # THE summary of the model
@@ -382,7 +445,7 @@ model = nvidia_model()
 model.summary()
 
 
-# In[53]:
+# In[216]:
 
 def train_model(model, training_generator, number_of_epochs, number_of_samples_per_epoch, validation_generator, number_of_validation_samples):
         return model.fit_generator(training_generator, 
@@ -415,7 +478,8 @@ def save_model(model, model_name='model.json', model_weights='model.h5'):
                 #outfile.write(model_json)
                 json.dump(model_json, outfile)
                 # save weights
-                model.save_weights(model_weights)
+                #model.save_weights(model_weights)
+                model.save(model_weights)
                 print('saved model to disk')
         else:
             print("the model is not saved")
@@ -427,7 +491,8 @@ def save_model(model, model_name='model.json', model_weights='model.h5'):
             #outfile.write(model_json)
             json.dump(model_json, outfile)
             # save weights
-            model.save_weights(model_weights)
+            #model.save_weights(model_weights)
+            model.save(model_weights)
             print('saved model to disk')
             
             
@@ -441,21 +506,21 @@ def load_model(model_name='model.json', model_weights='model.h5'):
 
 # ### Training dataset
 
-# In[62]:
+# In[219]:
 
 # 1. define hyperparameters
-batch_size = 512
+batch_size = 1000
 
 number_of_epochs = 8
-number_of_samples_per_epoch = 20032
-number_of_validation_samples = 6400
+number_of_samples_per_epoch = 30000
+number_of_validation_samples = 5000
 #number_of_samples_per_epoch = 200
 #number_of_validation_samples = 400
 
-img_example = get_image(DRIVING_LOG_FILE)
+img_example = get_image(DRIVING_LOG_FILE, batch_size = batch_size)
 img_file = img_example[0][0]
 image = plt.imread(IMG_PATH + img_file)
-resized_image = augmentation_crop(image, 0)
+resized_image = augmentation_crop(image)
 
 img_shape = image.shape
 print(img_shape)
@@ -471,13 +536,18 @@ def main(log_file_path, save_to_disk=True, load_from_disk=False):
         model = nvidia_model()
 
         #3. create two generators for training and validation
-        training_generator = myGenerator()
-        validation_generator = myGenerator()
+        training_generator = myGenerator(batch_size= batch_size )
+        validation_generator = myGenerator(batch_size= batch_size )
         #next(train_gen)[0].shape
         
         # 4. train and save
-        train_model(model, training_generator, number_of_epochs, number_of_samples_per_epoch, 
-                    validation_generator, number_of_validation_samples)
+        train_model(model, 
+                    training_generator, 
+                    number_of_epochs, 
+                    number_of_samples_per_epoch//batch_size*batch_size, 
+                    validation_generator, 
+                    number_of_validation_samples)
+        
     
         # 5. check
         val = []
@@ -489,19 +559,24 @@ def main(log_file_path, save_to_disk=True, load_from_disk=False):
 
         for img_file in check_image_file:
             image = plt.imread(IMG_PATH + img_file)
-            val.append(augmentation_crop(image, 0))
+            val.append(augmentation_crop(image))
 
         #prediction = model.predict(np.array(val))
         prediction = predict(model, np.array(val))
         print('Predicted steering angles: ',prediction)
         print('True steering angles: ',check_steering)
-
+        
+        
+    # Add checkpoint and early-stopping
+    #filepath='w.{epoch:02d}-{val_loss:0.4f}.h5'
+    #checkpointer = ModelCheckpoint(filepath,monitor='val_loss',verbose=1,save_best_only=True)
+    #early_stopper = EarlyStopping(monitor='val_loss',min_delta=0.001, patience=3, verbose=1)
 
     if save_to_disk:
         save_model(model)
 
 
-# In[55]:
+# In[220]:
 
 if __name__ == "__main__":
     main(DRIVING_LOG_FILE)
@@ -512,7 +587,4 @@ if __name__ == "__main__":
 # - [Nvidia Paper: End to End Learning for Self-Driving Cars](https://arxiv.org/pdf/1604.07316v1.pdf)
 # - [Introduction to Python Generators](http://intermediatepythonista.com/python-generators)
 
-# In[ ]:
-
-
-
+# 
