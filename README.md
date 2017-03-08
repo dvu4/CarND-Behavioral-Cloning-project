@@ -234,7 +234,7 @@ This repository comes with trained model which you can directly test using the f
 
 - Start simulator in autonomous mode
 
-- Start server: `python drive.py model.json`
+- Start server: `python drive.py model.h5`
 
 
 ### Results
