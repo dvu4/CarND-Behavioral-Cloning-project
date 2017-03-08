@@ -54,7 +54,7 @@ RIGHT_CAM_FILE = 2
 
 # ### Dataset Statistics
 
-# In[209]:
+# In[237]:
 
 def get_stastitical_data(file):
     driving_log = pd.read_csv(file)
@@ -67,6 +67,7 @@ def get_stastitical_data(file):
     
     plt.figure();
     steering.plot.hist(bins=101,alpha=0.75)
+    plt.savefig('.data/stastitical.png')
     
     return {
         'num_samples' :  num_samples,
@@ -102,18 +103,14 @@ driving_log = pd.read_csv(DRIVING_LOG_FILE,names=None)
 driving_log.head()
 
 
-# In[211]:
+# In[ ]:
 
-Y_train = driving_log['steering']
-Y_train = Y_train.astype(np.float32)
-plt.figure();
-Y_train.plot.hist(bins=101,alpha=0.95)
-plt.savefig('./stastitical.png')
+
 
 
 # ### Dataset Augmentation
 
-# In[212]:
+# In[238]:
 
 def augmentation_shadow(image):
     img_shape = image.shape
@@ -155,28 +152,6 @@ def augmentation_brightness(image):
     image1 = cv2.cvtColor(image1,cv2.COLOR_HSV2RGB)
     return image1
 
-
-'''
-def augmentation_crop(image):
-    img_shape = image.shape
-    image = image[math.floor(img_shape[0] / 5):img_shape[0] - 25, :, :]
-    return image
-'''
-
-
-'''
-# crop camera image to fit nvidia model input shape
-def augmentation_crop(image, crop_height=200, crop_width=200):
-    height = image.shape[0]
-    width = image.shape[1]
-
-    # y_start = 60+random.randint(-10, 10)
-    # x_start = int(width/2)-int(crop_width/2)+random.randint(-40, 40)
-    y_start = 60
-    x_start = int(width/2)-int(crop_width/2)
-
-    return image[y_start:y_start+crop_height, x_start:x_start+crop_width]
-'''
 
 def augmentation_crop(image, crop_height=200, crop_width=200):
     return cv2.resize(image[70:140, :, :],(crop_height, crop_width))
@@ -249,7 +224,7 @@ def generate_new_image(image, steering_angle, do_shear_prob=0.9):
     ##img = augmentation_gamma(img)
     #image, steering_angle = augmentation_trans(image, steering_angle, 100)
     image = augmentation_crop(image)
-    #image = augmentation_shadow(image)
+    image = augmentation_shadow(image)
     image = np.array(image)
     image, steering_angle = augmentation_flip(image, steering_angle)
     
@@ -316,7 +291,7 @@ def myGenerator(batch_size=128):
 
 # ### Dataset example
 
-# In[213]:
+# In[231]:
 
 ## 
 img_example = get_image(DRIVING_LOG_FILE, batch_size=64)
@@ -348,7 +323,7 @@ for indx in rdn_indx:
 
 # ###  Model Architecture
 
-# In[214]:
+# In[232]:
 
 def commaai_model():
     ch, row, col = 3, 160, 320  # camera format
@@ -382,7 +357,7 @@ model = commaai_model()
 model.summary()
 
 
-# In[215]:
+# In[233]:
 
 def nvidia_model(img_height=200, img_width=200, img_channels=3):
     """
@@ -445,7 +420,7 @@ model = nvidia_model()
 model.summary()
 
 
-# In[216]:
+# In[234]:
 
 def train_model(model, training_generator, number_of_epochs, number_of_samples_per_epoch, validation_generator, number_of_validation_samples):
         return model.fit_generator(training_generator, 
@@ -506,12 +481,12 @@ def load_model(model_name='model.json', model_weights='model.h5'):
 
 # ### Training dataset
 
-# In[219]:
+# In[235]:
 
 # 1. define hyperparameters
 batch_size = 1000
 
-number_of_epochs = 8
+number_of_epochs = 5
 number_of_samples_per_epoch = 30000
 number_of_validation_samples = 5000
 #number_of_samples_per_epoch = 200
@@ -576,7 +551,7 @@ def main(log_file_path, save_to_disk=True, load_from_disk=False):
         save_model(model)
 
 
-# In[220]:
+# In[236]:
 
 if __name__ == "__main__":
     main(DRIVING_LOG_FILE)
@@ -586,5 +561,14 @@ if __name__ == "__main__":
 # - [Udacity self-driving-car project](https://github.com/udacity/self-driving-car)
 # - [Nvidia Paper: End to End Learning for Self-Driving Cars](https://arxiv.org/pdf/1604.07316v1.pdf)
 # - [Introduction to Python Generators](http://intermediatepythonista.com/python-generators)
-
 # 
+
+# In[ ]:
+
+
+
+
+# In[ ]:
+
+
+
