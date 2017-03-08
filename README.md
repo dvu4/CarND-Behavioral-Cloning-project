@@ -227,7 +227,7 @@ We created two generators namely:
 * `training_generator = myGenerator()`
 * `validation_generator = myGenerator()` 
 
-Batch size of both `train_gen` and `validation_gen` was 64. We used 20032 images per training epoch. It is to be noted that these images are generated on the fly using the document processing pipeline described above. In addition to that, we used 6400 images (also generated on the fly) for validation. We used `Adam` optimizer with `1e-4` learning rate. Finally, when it comes to the number of training epochs we tried several possibilities such as `5`, `8`, `1`0, `2`5 and `50`. However, `8` works well on both training and validation tracks.
+Batch size of both `train_gen` and `validation_gen` was 1000. We used 30000 images per training epoch. It is to be noted that these images are generated on the fly using the document processing pipeline described above. In addition to that, we used 5000 images (also generated on the fly) for validation. We used `Adam` optimizer with `1e-4` learning rate. Finally, when it comes to the number of training epochs we tried several possibilities such as `5`, `8`, `1`0, `2`5 and `50`. However, `8` works well on both training and validation tracks.
 
 
 ### How to Run the Model
@@ -248,3 +248,12 @@ Training Track 1 | Validation Track 2
 ![training_img](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/train_track1.png) | ![validation_img](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/train_track2.png)
 
 
+### Conclusions
+By making consequent use of image augmentation with according steering angle updates I could train a neural network to recover the car from most extreme events. The model worked for the 3/4 of track 1 but it failed in track 2. Getting this to work took a lot of time and this is still far from over. Here's a to-do list for myself to improve training data
+
+- try to get it to work with increased throttle to 0.2
+- Check on track 2
+- Look at L2 regularization and associated hyperparameters
+- Add speed as an input quantity and throttle as output quantity on the model
+- Image augmentations with shadow/darkening that may help for track 2 
+Image augmentations with a random white-noise in the crop region
