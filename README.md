@@ -135,6 +135,12 @@ Left| Center | Right
 ----|--------|-------
 ![left](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/left_2016_12_01_13_34_37_857.jpg) | ![center](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/center_2016_12_01_13_34_37_857.jpg) | ![right](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/right_2016_12_01_13_34_37_857.jpg)
 
+
+Shown below is a histogram of the steering angles recorded while driving in the middle of the road for a few laps. This is also the data used for training. The left-right skew is less problematic and can be eliminated by flipping images and steering angles simultaneously. However, even after balancing left and right angles most of the time the steering angle during normal driving is small or zero and thus introduces a bias towards driving straight. The most important events however are those when the car needs to turn sharply.
+
+![training_img](https://raw.githubusercontent.com/dvu4/CarND-Behavioral-Cloning-project/master/data/stastitical.png)
+
+
 ### Dataset Augmentation
 8036 images in Udacity dataset is not enough for a full train, especially for recovery and for generalization for track 2. I applied following augmentation techniques:
 
